@@ -12,12 +12,13 @@ const generateRandomString = () => {
 };
 
 const userEmailCheck = (email) => {
-  for (const user in users) {
-    const user = users[user];
+  for (const userId in users) {
+    const user = users[userId];
     if (user.email === email) {
       return user;
     }
   }
   return null;
 };
+
 module.exports = {generateRandomString, userEmailCheck};

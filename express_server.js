@@ -4,7 +4,8 @@ const PORT = 8080; // default port 8080
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
-const {generateRandomString, userEmailCheck} = require("./helperFunctions");
+const uuid = require("uuid");
+const {generateRandomString, userEmailCheck, passwordCheck} = require("./helperFunctions");
 const {urlDatabase, users} = require("./variables");
 
 app.use(morgan("dev"));
@@ -85,12 +86,6 @@ app.get("/urls/:shortURL", (req, res) => {
 
 //----------------------------User-------------------------
 
-//Add login cookie
-app.post("/login", (req, res) => {
-  res.cookie("user_id", req.body.user_id);
-  res.redirect("/urls");
-});
-
 //Clear login cookies and logout
 app.post("/logout", (req, res) => {
   res.clearCookie("user_id");
@@ -107,28 +102,21 @@ app.get("/register", (req, res) => {
 
 //Create registration endpoint to take in registration data
 app.post("/register", (req, res) => {
-  const email = req.body.email;
-  const password = req.body.password;
-  const foundUser = userEmailCheck(email);
-  const user_id = uuid.v4().split('-')[1];
-
-  if (!email || !password) {
+  if (userEmailCheck(req.body.email)) {
+    res.status(400).send("Email already registered, try logging in.");
+  }
+  if (req.body.email && req.body.password) {
+    req.body.user_id = uuid.v4().split('-')[1];
+    users[req.body.user_id] = {
+      id: req.body.user_id,
+      email: req.body.email,
+      password: req.body.password
+    };
+    res.cookie("user_id", req.body.user_id);
+    res.redirect("/login");
+  } else {
     res.status(400).send("Please enter a valid email and password.");
   }
-
-  if (foundUser) {
-    return res.status(400).send("Email already registered, try logging in.");
-  }
-
-  const newUser = {
-    id: user_id,
-    email: email,
-    password: password
-  };
-
-  res.cookie("user_id", newUser.id);
-  res.redirect("/urls");
-  console.log(users);
 });
 
 //Add login page
@@ -141,16 +129,21 @@ app.get("/login", (req, res) => {
 
 //Create login endpoint to take in login data
 app.post("/login", (req, res) => {
-  const email = req.body.email;
-  const password = req.body.password;
-  const foundUser = userEmailCheck(email);
+  const {email, password} = req.body;
+  const userFound = userEmailCheck(email);
 
-  if (foundUser === null) {
-    return res.status(400).send("That email is not registered. Do you need to register?");
+  if (!email || !password) {
+    res.status(400).send("Please enter an email and password");
   }
-  if (foundUser.password !== password) {
-    return res.status(400).send("Password incorrect");
+
+  if (!userFound) {
+    res.status(400).send("Email not registered, please try again.");
   }
-  res.cookie("user_id", foundUser.id);
+
+  if (userFound.password !== password) {
+    res.status(403).send("Password incorrect");
+  }
+
+  res.cookie("user_id", userFound.id);
   res.redirect("/urls");
 });
