@@ -13,7 +13,7 @@ app.listen(PORT, () => {
 
 function generateRandomString() {
   let result = "";
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890";
   const resultLength = 6;
 
   for (let i = 0; i < resultLength; i++) {
@@ -55,13 +55,10 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 
 app.post("/urls/:shortURL", (req, res) => {
   const longURL = req.body.longURL;
-  console.log(longURL);
   const shortURL = req.params.shortURL;
   urlDatabase[shortURL] = longURL;
   res.redirect("/urls");
 });
-//Cannot POST / urls / http://www.lighthouselabs.ca
-
 
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL];
