@@ -1,7 +1,8 @@
 const express = require("express");
 const app = express();
 const PORT = 8080; // default port 8080
-const generateRandomString = require("./generateRandomString");
+const {generateRandomString} = require("./generateRandomString");
+const {urlDatabase, users} = require("./variables");
 const morgan = require("morgan");
 app.use(morgan("dev"));
 const cookieParser = require("cookie-parser");
@@ -14,11 +15,6 @@ app.set("view engine", "ejs");
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
-
-const urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
-};
 
 //root route
 app.get("/", (req, res) => {
@@ -94,7 +90,18 @@ app.post("/login", (req, res) => {
   res.redirect("/urls");
 });
 
+//Clear login cookies and logout
 app.post("/logout", (req, res) => {
   res.clearCookie("username");
   res.redirect("/urls");
+});
+
+//Create registration page
+app.get("/register", (req, res) => {
+  let templateVars = {
+    shortURL: req.params.shortURL,
+    longURL: urlDatabase[req.params.shortURL],
+    username: req.cookies["username"]
+  };
+  res.render("register", templateVars);
 });
