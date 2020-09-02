@@ -1,13 +1,14 @@
 const express = require("express");
 const app = express();
 const PORT = 8080; // default port 8080
-const {generateRandomString} = require("./generateRandomString");
-const {urlDatabase, users} = require("./variables");
 const morgan = require("morgan");
-app.use(morgan("dev"));
 const cookieParser = require("cookie-parser");
-app.use(cookieParser());
 const bodyParser = require("body-parser");
+const {generateRandomString, userEmailCheck} = require("./helperFunctions");
+const {urlDatabase, users} = require("./variables");
+
+app.use(morgan("dev"));
+app.use(cookieParser());
 app.use(bodyParser.urlencoded({extended: true}));
 
 app.set("view engine", "ejs");
@@ -24,7 +25,7 @@ app.get("/", (req, res) => {
 //shows an index of URLS
 app.get("/urls", (req, res) => {
   let templateVars = {
-    username: req.cookies["username"],
+    user: users[req.cookies["user_id"]],
     urls: urlDatabase
   };
   res.render("urls_index", templateVars);
@@ -33,7 +34,7 @@ app.get("/urls", (req, res) => {
 //add new URL
 app.get("/urls/new", (req, res) => {
   let templateVars = {
-    username: req.cookies["username"],
+    user: users[req.cookies["user_id"]],
     urls: urlDatabase
     //add other variables here
   };
@@ -77,7 +78,7 @@ app.get("/urls/:shortURL", (req, res) => {
   let templateVars = {
     shortURL: req.params.shortURL,
     longURL: urlDatabase[req.params.shortURL],
-    username: req.cookies["username"]
+    user: users[req.cookies["user_id"]],
   };
   res.render("urls_show", templateVars);
 });
@@ -86,13 +87,13 @@ app.get("/urls/:shortURL", (req, res) => {
 
 //Add login cookie
 app.post("/login", (req, res) => {
-  res.cookie("username", req.body.username);
+  res.cookie("user_id", req.body.user_id);
   res.redirect("/urls");
 });
 
 //Clear login cookies and logout
 app.post("/logout", (req, res) => {
-  res.clearCookie("username");
+  res.clearCookie("user_id");
   res.redirect("/urls");
 });
 
@@ -101,7 +102,27 @@ app.get("/register", (req, res) => {
   let templateVars = {
     shortURL: req.params.shortURL,
     longURL: urlDatabase[req.params.shortURL],
-    username: req.cookies["username"]
+    user: users[req.cookies["user_id"]]
   };
   res.render("register", templateVars);
+});
+
+//Create registration endpoint to take in registration data
+app.post("/register", (req, res) => {
+  if (userEmailCheck(req.body.email)) {
+    res.status(400).send("Email already registered, try logging in.");
+  }
+  if (req.body.email && req.body.password) {
+    req.body.user_id = generateRandomString();
+    users[req.body.user_id] = {
+      id: req.body.user_id,
+      email: req.body.email,
+      password: req.body.password
+    };
+    res.cookie("user_id", req.body.user_id);
+    res.redirect("/urls");
+  } else {
+    res.status(400).send("Please enter a valid email and password.");
+  }
+  console.log(users);
 });
