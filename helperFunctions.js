@@ -13,7 +13,8 @@ const generateRandomString = () => {
 
 const userEmailCheck = (email) => {
   for (const user in users) {
-    if (users[user].email === email) {
+    const user = users[user];
+    if (user.email === email) {
       return user;
     }
   }

@@ -100,8 +100,6 @@ app.post("/logout", (req, res) => {
 //Create registration page
 app.get("/register", (req, res) => {
   let templateVars = {
-    shortURL: req.params.shortURL,
-    longURL: urlDatabase[req.params.shortURL],
     user: users[req.cookies["user_id"]]
   };
   res.render("register", templateVars);
@@ -109,21 +107,27 @@ app.get("/register", (req, res) => {
 
 //Create registration endpoint to take in registration data
 app.post("/register", (req, res) => {
-  if (userEmailCheck(req.body.email)) {
-    return res.status(400).send("Email already registered, try logging in.");
-  }
-  if (req.body.email && req.body.password) {
-    req.body.user_id = generateRandomString();
-    users[req.body.user_id] = {
-      id: req.body.user_id,
-      email: req.body.email,
-      password: req.body.password
-    };
-    res.cookie("user_id", req.body.user_id);
-    res.redirect("/urls");
-  } else {
+  const email = req.body.email;
+  const password = req.body.password;
+  const foundUser = userEmailCheck(email);
+  const user_id = uuid.v4().split('-')[1];
+
+  if (!email || !password) {
     res.status(400).send("Please enter a valid email and password.");
   }
+
+  if (foundUser) {
+    return res.status(400).send("Email already registered, try logging in.");
+  }
+
+  const newUser = {
+    id: user_id,
+    email: email,
+    password: password
+  };
+
+  res.cookie("user_id", newUser.id);
+  res.redirect("/urls");
   console.log(users);
 });
 
