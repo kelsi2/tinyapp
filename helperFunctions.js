@@ -14,9 +14,9 @@ const generateRandomString = () => {
 const userEmailCheck = (email) => {
   for (const user in users) {
     if (users[user].email === email) {
-      return true;
+      return user;
     }
   }
-  return false;
+  return null;
 };
 module.exports = {generateRandomString, userEmailCheck};

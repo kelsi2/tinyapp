@@ -110,7 +110,7 @@ app.get("/register", (req, res) => {
 //Create registration endpoint to take in registration data
 app.post("/register", (req, res) => {
   if (userEmailCheck(req.body.email)) {
-    res.status(400).send("Email already registered, try logging in.");
+    return res.status(400).send("Email already registered, try logging in.");
   }
   if (req.body.email && req.body.password) {
     req.body.user_id = generateRandomString();
@@ -125,4 +125,28 @@ app.post("/register", (req, res) => {
     res.status(400).send("Please enter a valid email and password.");
   }
   console.log(users);
+});
+
+//Add login page
+app.get("/login", (req, res) => {
+  let templateVars = {
+    user: users[req.cookies["user_id"]]
+  };
+  res.render("login", templateVars);
+});
+
+//Create login endpoint to take in login data
+app.post("/login", (req, res) => {
+  const email = req.body.email;
+  const password = req.body.password;
+  const foundUser = userEmailCheck(email);
+
+  if (foundUser === null) {
+    return res.status(400).send("That email is not registered. Do you need to register?");
+  }
+  if (foundUser.password !== password) {
+    return res.status(400).send("Password incorrect");
+  }
+  res.cookie("user_id", foundUser.id);
+  res.redirect("/urls");
 });
