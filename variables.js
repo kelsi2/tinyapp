@@ -1,6 +1,7 @@
-const urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
+const urls = {
+  b6UTxQ: {longURL: "https://www.tsn.ca", userID: "aJ48lW"},
+  i3BoGr: {longURL: "https://www.google.ca", userID: "aJBt8r"},
+  b2xVn2: {longURL: "https://www.lighthouselabs.ca", userID: "8thb9x"}
 };
 
 const users = {
@@ -16,4 +17,4 @@ const users = {
   }
 };
 
-module.exports = {urlDatabase, users};
+module.exports = {urls, users};
