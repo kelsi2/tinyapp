@@ -1,4 +1,4 @@
-const {users, urlDatabase} = require("./variables");
+const {users, urls} = require("./variables");
 
 const generateRandomString = () => {
   let result = "";
@@ -21,14 +21,24 @@ const userEmailCheck = (email) => {
   return null;
 };
 
-const userURLs = (user_id) => {
-  const filteredURLs = {};
-  for (let url in urls) {
-    if (user_id === urls[url].userID) {
-      filteredURLs[url] = urls[url];
+const urlsForUser = (id) => {
+  let filteredDatabase = {};
+  for (let element in urls) {
+    if (id === urls[element].userID) {
+      filteredDatabase[element] = urls[element];
     }
   }
-  return filteredURLs;
+  return filteredDatabase;
 };
 
-module.exports = {generateRandomString, userEmailCheck};
+function findUserID(email) {
+  let output;
+  for (const user in users) {
+    if (users[user].email === email) {
+      output = users[user].id;
+      return output;
+    }
+  }
+}
+
+module.exports = {generateRandomString, userEmailCheck, urlsForUser, findUserID};
