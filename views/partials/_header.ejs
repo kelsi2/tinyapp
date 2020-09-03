@@ -17,7 +17,7 @@
           <a class="nav-item nav-link" href="/register">Register</a>
           <% } else { %>
           <div class="collapse navbar-collapse justify-content-end">
-            <h6 class="text-xl-right mr-4">Logged in as: <%= user.email %>!</h6>
+            <h6 class="text-xl-right mr-3">Logged in as: <%= user.email %>!</h6>
             <form method="POST" action="/logout">
               <button type="submit" class="btn btn-outline-dark">Logout</button>
             </form>
