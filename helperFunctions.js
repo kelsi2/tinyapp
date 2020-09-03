@@ -21,4 +21,14 @@ const userEmailCheck = (email) => {
   return null;
 };
 
-module.exports = {generateRandomString, userEmailCheck};
+const userURLs = (user_id) => {
+  const filteredURLs = {};
+  for (let url in urls) {
+    if (user_id === urls[url].userID) {
+      filteredURLs[url] = urls[url];
+    }
+  }
+  return filteredURLs;
+};
+
+module.exports = {generateRandomString, userEmailCheck, userURLs};

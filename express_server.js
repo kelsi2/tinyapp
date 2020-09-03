@@ -5,12 +5,14 @@ const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 const uuid = require("uuid");
-const {generateRandomString, userEmailCheck, passwordCheck} = require("./helperFunctions");
-const {urlDatabase, users} = require("./variables");
+const cookieSession = require("cookie-session");
+const {generateRandomString, userEmailCheck, userURLs} = require("./helperFunctions");
+const {urls, users} = require("./variables");
 
 app.use(morgan("dev"));
 app.use(cookieParser());
 app.use(bodyParser.urlencoded({extended: true}));
+app.use(cookieSession({name: "session", keys: ["key1", "key2"]}));
 
 app.set("view engine", "ejs");
 
@@ -18,72 +20,112 @@ app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
 
-//root route
+app.get("/urls.json", (req, res) => {
+  res.json(urls);
+});
+
+//root route; if user is logged in they are directed to their urls, otherwise they are directed to login
 app.get("/", (req, res) => {
-  res.send("Hello!");
+  if (users[req.session.user_id]) {
+    res.redirect("/urls");
+  } else {
+    res.redirect("/login");
+  }
 });
 
-//shows an index of URLS
+//shows an index of URLs as long as user is logged in
 app.get("/urls", (req, res) => {
-  let templateVars = {
-    user: users[req.cookies["user_id"]],
-    urls: urlDatabase
-  };
-  res.render("urls_index", templateVars);
+  if (users[req.session.user_id]) {
+    let templateVars = {
+      user: users[req.session.user_id],
+      urls: userURLs
+    };
+    res.render("urls_index", templateVars);
+  } else {
+    res.status(401).redirect("/login");
+  }
 });
 
-//add new URL
+//add new URL to user URLs if user is logged in
 app.get("/urls/new", (req, res) => {
-  let templateVars = {
-    user: users[req.cookies["user_id"]],
-    urls: urlDatabase
-    //add other variables here
-  };
+  if (!users[req.session.user_id]) {
+    res.status(401).redirect("/login");
+  }
   res.render("urls_new", templateVars);
 });
 
-//Create new short URL
+//Create new short URL, if not logged in redirect to login page. If logged in create url and save it to that user.
 app.post("/urls", (req, res) => {
-  const shortURL = generateRandomString();
-  urlDatabase[shortURL] = req.body.longURL;
-  res.redirect(`/urls/${shortURL}`);
+  if (!users[req.session.user_id]) {
+    res.status(401).redirect("/login");
+  }
+  if (users[req.session.user_id]) {
+    const shortURL = generateRandomString();
+    urls[shortURL] = {
+      longURL: req.body.longURL,
+      userID: req.session.user_id
+    };
+    res.redirect(`/urls/${shortURL}`);
+  }
 });
 
-//Delete a URL
-app.post("/urls/:shortURL/delete", (req, res) => {
-  const shortURL = req.params.shortURL;
-  delete urlDatabase[shortURL];
-  res.redirect("/urls");
+//Shows added url, if user is not logged in redirects to login page
+app.get("/urls/:shortURL", (req, res) => {
+  if (!users[req.session.user_id]) {
+    res.status(403).redirect("/login");
+  }
+
+  const userURL = userURLs(user);
+  for (let url in userURL) {
+    if (req.params.shortURL === url) {
+      let templateVars = {
+        shortURL: req.params.shortURL,
+        longURL: urls[req.params.shortURL].longURL,
+        user: users[req.session.user_id],
+      };
+      res.render("urls_show", templateVars);
+      return;
+    }
+  }
 });
 
 //Edit an existing URL
-app.post("/urls/:shortURL", (req, res) => {
-  const longURL = req.body.longURL;
-  const shortURL = req.params.shortURL;
-  urlDatabase[shortURL] = longURL;
-  res.redirect("/urls");
+app.post("/urls/:id", (req, res) => {
+  if (users[req.session.user_id]) {
+    const userURL = userURLs(req.session.user_id);
+    for (let url in userURLs) {
+      if (req.params.shortURL !== url) {
+        res.status(401).redirect("/login");
+      }
+    }
+    urls[req.params.id].longURL = req.body.newURL;
+    res.redirect("/urls");
+  }
+});
+
+//Delete a URL. If user is not logged in redirect to login page.
+app.post("/urls/:id/delete", (req, res) => {
+  if (users[req.session.user_id]) {
+    const userURL = userURLs(req.session.user_id);
+    for (let url in userURL) {
+      if (!req.params.shortURL === url) {
+        res.status(401).redired("/login");
+      }
+    }
+    delete urls[req.params.id];
+    res.redirect("/urls");
+  }
 });
 
 //Redirect when long URL is entered
 app.get("/u/:shortURL", (req, res) => {
-  const longURL = urlDatabase[req.params.shortURL];
-  res.redirect(longURL);
+  if (urls[req.params.shortURL]) {
+    const longURL = urls[req.params.shortURL].longURL;
+    res.redirect(longURL);
+  } else {
+    res.status(401).send("That URL does not exist.");
+  }
 });
-
-app.get("/urls.json", (req, res) => {
-  res.json(urlDatabase);
-});
-
-//Shows added url
-app.get("/urls/:shortURL", (req, res) => {
-  let templateVars = {
-    shortURL: req.params.shortURL,
-    longURL: urlDatabase[req.params.shortURL],
-    user: users[req.cookies["user_id"]],
-  };
-  res.render("urls_show", templateVars);
-});
-
 //----------------------------User-------------------------
 
 //Clear login cookies and logout
