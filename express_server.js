@@ -39,7 +39,7 @@ app.get("/urls", (req, res) => {
     const userURLs = user.id;
     res.render("urls_index", templateVars);
   } else {
-    res.status(401).send("You don't have permission to do that. Please login.");
+    res.status(401).redirect("/login");
   }
 });
 
