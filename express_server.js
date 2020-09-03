@@ -126,47 +126,18 @@ app.get("/u/:shortURL", (req, res) => {
     res.status(401).send("That URL does not exist.");
   }
 });
-//----------------------------User-------------------------
+//----------------------------User Login/Logout-------------------------
 
-//Clear login cookies and logout
-app.post("/logout", (req, res) => {
-  res.clearCookie("user_id");
-  res.redirect("/urls");
-});
-
-//Create registration page
-app.get("/register", (req, res) => {
-  let templateVars = {
-    user: users[req.cookies["user_id"]]
-  };
-  res.render("register", templateVars);
-});
-
-//Create registration endpoint to take in registration data
-app.post("/register", (req, res) => {
-  if (userEmailCheck(req.body.email)) {
-    res.status(400).send("Email already registered, try logging in.");
-  }
-  if (req.body.email && req.body.password) {
-    req.body.user_id = uuid.v4().split('-')[1];
-    users[req.body.user_id] = {
-      id: req.body.user_id,
-      email: req.body.email,
-      password: req.body.password
-    };
-    res.cookie("user_id", req.body.user_id);
-    res.redirect("/login");
-  } else {
-    res.status(400).send("Please enter a valid email and password.");
-  }
-});
-
-//Add login page
+//Add login page. If user is logged in already redirect to the urls page.
 app.get("/login", (req, res) => {
-  let templateVars = {
-    user: users[req.cookies["user_id"]]
-  };
-  res.render("login", templateVars);
+  if (users[req.session.user_id]) {
+    res.redirect("/urls");
+  } else {
+    let templateVars = {
+      user: users[req.session.user_id]
+    };
+    res.render("login", templateVars);
+  }
 });
 
 //Create login endpoint to take in login data
@@ -186,6 +157,47 @@ app.post("/login", (req, res) => {
     res.status(403).send("Password incorrect");
   }
 
-  res.cookie("user_id", userFound.id);
+  req.session.user_id = userFound;
   res.redirect("/urls");
+});
+
+//Clear login cookies and logout
+app.post("/logout", (req, res) => {
+  req.session = null;
+  res.redirect("/login");
+});
+
+// -----------------------------User Registration---------------------
+
+//Create registration page. If user is already logged in redirect to urls page.
+app.get("/register", (req, res) => {
+  if (users[req.session.user_id]) {
+    res.redirect("/urls");
+  } else {
+    let templateVars = {
+      user: users[req.session.user_id]
+    };
+    res.render("register", templateVars);
+  }
+});
+
+//Create registration endpoint to take in registration data. Redirect to login once complete.
+app.post("/register", (req, res) => {
+  if (userEmailCheck(req.body.email)) {
+    res.status(400).send("Email already registered, try logging in.");
+    res.redirect("/login");
+  }
+  if (req.body.email && req.body.password) {
+    const newUser = uuid.v4().split('-')[1];
+    req.session.user_id = newUser;
+    users[newUser] = {
+      id: newUser,
+      email: req.body.email,
+      password: req.body.password
+    };
+    res.redirect("/login");
+  } else {
+    res.status(400).send("Please enter a valid email and password.");
+    res.redirect("/register");
+  }
 });
