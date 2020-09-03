@@ -26,7 +26,7 @@ app.get("/urls.json", (req, res) => {
 
 //root route; if user is logged in they are directed to their urls, otherwise they are directed to login
 app.get("/", (req, res) => {
-  if (users[req.session.user_id]) {
+  if (users[req.session.id]) {
     res.redirect("/urls");
   } else {
     res.redirect("/login");
@@ -35,20 +35,24 @@ app.get("/", (req, res) => {
 
 //shows an index of URLs as long as user is logged in
 app.get("/urls", (req, res) => {
-  if (users[req.session.user_id]) {
-    let templateVars = {
-      user: users[req.session.user_id],
-      urls: userURLs
-    };
-    res.render("urls_index", templateVars);
-  } else {
+  userURLs(req.session.id);
+  let templateVars = {
+    urls: userURLs,
+    user: req.session.id,
+    email: userEmailCheck(req.session.id)
+  };
+  if (!users[req.session.id]) {
     res.status(401).redirect("/login");
+
+  } else {
+    res.render("urls_index", templateVars);
   }
 });
 
 //add new URL to user URLs if user is logged in
 app.get("/urls/new", (req, res) => {
-  if (!users[req.session.user_id]) {
+  const templateVars = {user: users[req.session.id]};
+  if (!users[req.session.id]) {
     res.status(401).redirect("/login");
   }
   res.render("urls_new", templateVars);
@@ -56,22 +60,22 @@ app.get("/urls/new", (req, res) => {
 
 //Create new short URL, if not logged in redirect to login page. If logged in create url and save it to that user.
 app.post("/urls", (req, res) => {
-  if (!users[req.session.user_id]) {
-    res.status(401).redirect("/login");
-  }
-  if (users[req.session.user_id]) {
+  if (users[req.session.id]) {
     const shortURL = generateRandomString();
-    urls[shortURL] = {
-      longURL: req.body.longURL,
-      userID: req.session.user_id
-    };
+    console.log(urls)
+      (urls.shortURL = {
+        longURL: req.body.longURL,
+        user: req.session.id
+      });
     res.redirect(`/urls/${shortURL}`);
+  } else if (!users[req.session.id]) {
+    res.status(401).redirect("/login");
   }
 });
 
 //Shows added url, if user is not logged in redirects to login page
 app.get("/urls/:shortURL", (req, res) => {
-  if (!users[req.session.user_id]) {
+  if (!users[req.session.id]) {
     res.status(403).redirect("/login");
   }
 
@@ -81,7 +85,7 @@ app.get("/urls/:shortURL", (req, res) => {
       let templateVars = {
         shortURL: req.params.shortURL,
         longURL: urls[req.params.shortURL].longURL,
-        user: users[req.session.user_id],
+        user: users[req.session.id],
       };
       res.render("urls_show", templateVars);
       return;
@@ -91,8 +95,8 @@ app.get("/urls/:shortURL", (req, res) => {
 
 //Edit an existing URL
 app.post("/urls/:id", (req, res) => {
-  if (users[req.session.user_id]) {
-    const userURL = userURLs(req.session.user_id);
+  if (users[req.session.id]) {
+    const userURL = userURLs(req.session.id);
     for (let url in userURLs) {
       if (req.params.shortURL !== url) {
         res.status(401).redirect("/login");
@@ -105,8 +109,8 @@ app.post("/urls/:id", (req, res) => {
 
 //Delete a URL. If user is not logged in redirect to login page.
 app.post("/urls/:id/delete", (req, res) => {
-  if (users[req.session.user_id]) {
-    const userURL = userURLs(req.session.user_id);
+  if (users[req.session.id]) {
+    const userURL = userURLs(req.session.id);
     for (let url in userURL) {
       if (!req.params.shortURL === url) {
         res.status(401).redired("/login");
@@ -130,11 +134,11 @@ app.get("/u/:shortURL", (req, res) => {
 
 //Add login page. If user is logged in already redirect to the urls page.
 app.get("/login", (req, res) => {
-  if (users[req.session.user_id]) {
+  if (users[req.session.id]) {
     res.redirect("/urls");
   } else {
     let templateVars = {
-      user: users[req.session.user_id]
+      user: users[req.session.id]
     };
     res.render("login", templateVars);
   }
@@ -157,7 +161,7 @@ app.post("/login", (req, res) => {
     res.status(403).send("Password incorrect");
   }
 
-  req.session.user_id = userFound;
+  req.session.id = userFound;
   res.redirect("/urls");
 });
 
@@ -171,11 +175,11 @@ app.post("/logout", (req, res) => {
 
 //Create registration page. If user is already logged in redirect to urls page.
 app.get("/register", (req, res) => {
-  if (users[req.session.user_id]) {
+  if (users[req.session.id]) {
     res.redirect("/urls");
   } else {
     let templateVars = {
-      user: users[req.session.user_id]
+      user: users[req.session.id]
     };
     res.render("register", templateVars);
   }
@@ -183,21 +187,19 @@ app.get("/register", (req, res) => {
 
 //Create registration endpoint to take in registration data. Redirect to login once complete.
 app.post("/register", (req, res) => {
+  if (!req.body.email && !req.body.password) {
+    res.status(400).send("Please enter a valid email and password.");
+  }
   if (userEmailCheck(req.body.email)) {
     res.status(400).send("Email already registered, try logging in.");
-    res.redirect("/login");
   }
-  if (req.body.email && req.body.password) {
-    const newUser = uuid.v4().split('-')[1];
-    req.session.user_id = newUser;
-    users[newUser] = {
-      id: newUser,
-      email: req.body.email,
-      password: req.body.password
-    };
-    res.redirect("/login");
-  } else {
-    res.status(400).send("Please enter a valid email and password.");
-    res.redirect("/register");
-  }
+
+  let id = uuid.v4().split('-')[1];
+  req.session.id = id;
+  users[id] = {
+    id: id,
+    email: req.body.email,
+    password: req.body.password
+  };
+  res.redirect("/login");
 });
