@@ -1,9 +1,7 @@
-const users = require("./userDatabase");
+const users = require("./users");
 const urls = require("./urls");
-// const urlDatabase = require('./urlDatabase');
-// const userDatabase = require('./userDatabase')
 
-
+//creates random 6 character string for shortURL
 const generateRandomString = () => {
   let result = "";
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890";
@@ -15,20 +13,21 @@ const generateRandomString = () => {
   return result;
 };
 
-const userEmailCheck = (email) => {
+//validates user by email
+const userEmailCheck = (email, users) => {
   for (const userId in users) {
     const user = users[userId];
     if (user.email === email) {
       return user;
     }
   }
-  return null;
+  return undefined;
 };
 
-//grabs all items from urlDB that belong to user
-const urlsForUser = (id) => {
+//loops over urls and returns the ones that belong to user
+const urlsForUser = (id, urls) => {
   let filteredDatabase = {};
-  for (let element in urls) {
+  for (const element in urls) {
     if (id === urls[element].userID) {
       filteredDatabase[element] = urls[element];
     }
@@ -36,8 +35,8 @@ const urlsForUser = (id) => {
   return filteredDatabase;
 };
 
-
-function findUserID(email) {
+//retrieve user id from email
+const findUserID = (email, users) => {
   let output;
   for (const user in users) {
     if (users[user].email === email) {
@@ -45,6 +44,6 @@ function findUserID(email) {
       return output;
     }
   }
-}
+};
 
 module.exports = {generateRandomString, userEmailCheck, urlsForUser, findUserID};
