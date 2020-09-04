@@ -1,4 +1,8 @@
-const {users, urls} = require("./variables");
+const users = require("./userDatabase");
+const urls = require("./urls");
+// const urlDatabase = require('./urlDatabase');
+// const userDatabase = require('./userDatabase')
+
 
 const generateRandomString = () => {
   let result = "";
@@ -21,6 +25,7 @@ const userEmailCheck = (email) => {
   return null;
 };
 
+//grabs all items from urlDB that belong to user
 const urlsForUser = (id) => {
   let filteredDatabase = {};
   for (let element in urls) {
@@ -30,6 +35,7 @@ const urlsForUser = (id) => {
   }
   return filteredDatabase;
 };
+
 
 function findUserID(email) {
   let output;

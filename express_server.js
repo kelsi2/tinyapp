@@ -5,8 +5,12 @@ const morgan = require("morgan");
 const bodyParser = require("body-parser");
 const uuid = require("uuid");
 const cookieSession = require("cookie-session");
-const {generateRandomString, userEmailCheck, urlsForUser, findUserID} = require("./helperFunctions");
-const {urls, users} = require("./variables");
+const bcrypt = require("bcrypt");
+const helperFunctions = require("./helperFunctions");
+const urls = require("./urls");
+const users = require("./userDatabase");
+let filteredDatabase = {};
+let userObjects;
 
 app.use(morgan("dev"));
 app.use(bodyParser.urlencoded({extended: true}));
@@ -39,9 +43,10 @@ app.get("/urls", (req, res) => {
   } else {
     const templateVars = {
       user: users[req.session.id],
-      urls: urlsForUser(req.session.id),
-      email: userEmailCheck(req.session.id, users)
+      urls: helperFunctions.urlsForUser(req.session.id),
+      email: helperFunctions.userEmailCheck(req.session.id, users)
     };
+    console.log(templateVars.urls);
     res.render("urls_index", templateVars);
   }
 });
@@ -63,7 +68,7 @@ app.post("/urls", (req, res) => {
     res.status(403).send("Please enter a url to shorten.");
   }
   if (req.session.id) {
-    const shortURL = generateRandomString();
+    const shortURL = helperFunctions.generateRandomString();
     urls[shortURL] = {
       longURL: req.body.longURL,
       userID: req.session.id
@@ -79,18 +84,18 @@ app.post("/urls", (req, res) => {
 //Shows added url, if user is not logged in redirects to login page
 app.get("/urls/:shortURL", (req, res) => {
   if (users[req.session.id]) {
-    let userURL = urlsForUser(req.session.id);
-    if (req.params.shortURL in userURL) {
-      let templateVars = {
-        shortURL: req.params.shortURL,
-        longURL: urls[req.params.shortURL].longURL,
-        user: users[req.session.id],
-      };
-      res.render("urls_show", templateVars);
-      return;
-    } else {
-      res.status(403).send("You cannot view URLs that you don't own.");
-    }
+    let userURL = helperFunctions.urlsForUser(req.session.id);
+    //if (req.params.shortURL in userURL) {
+    let templateVars = {
+      shortURL: req.params.shortURL,
+      longURL: urls[req.params.shortURL].longURL,
+      user: users[req.session.id],
+    };
+    res.render("urls_show", templateVars);
+    return;
+    // } else {
+    //   res.status(403).send("You cannot view URLs that you don't own.");
+    //}
   }
   if (!users[req.session.id]) {
     res.status(403).send("Please login to view your short URLs.");
@@ -114,7 +119,7 @@ app.post("/urls/:id", (req, res) => {
 //Delete a URL. If user is not logged in redirect to login page.
 app.post("/urls/:id/delete", (req, res) => {
   if (users[req.session.id]) {
-    const userURL = urlsForUser(req.session.id);
+    const userURL = helperFunctions.urlsForUser(req.session.id);
     for (let url in userURL) {
       if (!req.params.shortURL === url) {
         res.status(401).redired("/login");
@@ -151,13 +156,12 @@ app.get("/login", (req, res) => {
 //Create login endpoint to take in login data
 app.post("/login", (req, res) => {
   const email = req.body.email;
-  console.log(email);
   const password = req.body.password;
-  console.log(password);
-  let userFound = userEmailCheck(email);
-  console.log(userFound);
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  bcrypt.compareSync(password, hashedPassword);
+  let userFound = helperFunctions.userEmailCheck(email);
   if (userFound) {
-    const userId = findUserID(email);
+    const userId = helperFunctions.findUserID(email);
     req.session.id = userId;
     res.redirect("/urls");
   }
@@ -167,7 +171,7 @@ app.post("/login", (req, res) => {
   if (!userFound) {
     res.status(400).send("Email not registered, please try again.");
   }
-  if (userFound.password !== password) {
+  if (userFound.hashedPassword !== hashedPassword) {
     res.status(403).send("Password incorrect");
   }
 });
@@ -194,10 +198,12 @@ app.get("/register", (req, res) => {
 
 //Create registration endpoint to take in registration data. Redirect to login once complete.
 app.post("/register", (req, res) => {
-  if (!req.body.email && !req.body.password) {
+  const password = req.body.password;
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  if (!req.body.email && !hashedPassword) {
     res.status(400).send("Please enter a valid email and password.");
   }
-  if (userEmailCheck(req.body.email)) {
+  if (helperFunctions.userEmailCheck(req.body.email)) {
     res.status(400).send("Email already registered, try logging in.");
   }
 
@@ -206,7 +212,7 @@ app.post("/register", (req, res) => {
   users[req.session.id] = {
     id: id,
     email: req.body.email,
-    password: req.body.password
+    password: hashedPassword
   };
   res.redirect("/login");
 });
