@@ -1,6 +1,6 @@
 const express = require("express");
 const app = express();
-const PORT = 8080; // default port 8080
+const PORT = 8081; // default port 8080
 const morgan = require("morgan");
 const bodyParser = require("body-parser");
 const uuid = require("uuid");
@@ -16,10 +16,6 @@ app.use(cookieSession({name: "session", keys: ["key1", "key2"]}));
 
 app.set("view engine", "ejs");
 
-app.listen(PORT, () => {
-  console.log(`Example app listening on port ${PORT}!`);
-});
-
 app.get("/urls.json", (req, res) => {
   res.json(urls);
 });
@@ -30,6 +26,30 @@ app.get("/", (req, res) => {
     res.redirect("/urls");
   } else {
     res.redirect("/login");
+  }
+});
+
+//Create registration page. If user is already logged in redirect to urls page.
+app.get("/register", (req, res) => {
+  if (users[req.session.id]) {
+    res.redirect("/urls");
+  } else {
+    const templateVars = {
+      user: users[req.session.id]
+    };
+    res.render("register", templateVars);
+  }
+});
+
+//Add login page. If user is logged in already redirect to the urls page.
+app.get("/login", (req, res) => {
+  if (users[req.session.id]) {
+    res.redirect("/urls");
+  } else {
+    const templateVars = {
+      user: users[req.session.id]
+    };
+    res.render("login", templateVars);
   }
 });
 
@@ -58,6 +78,31 @@ app.get("/urls/new", (req, res) => {
   res.render("urls_new", templateVars);
 });
 
+//Shows added url, if user is not logged in redirects to login page
+app.get("/urls/:shortURL", (req, res) => {
+  if (users[req.session.id]) {
+    helperFunctions.urlsForUser(req.session.id, urls);
+    const templateVars = {
+      shortURL: req.params.shortURL,
+      longURL: urls[req.params.shortURL].longURL,
+      user: users[req.session.id],
+    };
+    res.render("urls_show", templateVars);
+  }
+  if (!users[req.session.id]) {
+    res.status(403).send("You need to <a href='/login'>login</a> to view that content.");
+  }
+});
+
+//Redirect when long URL is entered
+app.get("/u/:id", (req, res) => {
+  if (!urls[req.params.id]) {
+    res.status(401).send("That URL does not exist. 😿 <a href='/urls/new'>Try making a new one.</a>");
+  } else {
+    res.redirect(urls[req.params.id].longURL);
+  }
+});
+
 //Create new short URL, if not logged in redirect to login page. If logged in create url and save it to that user.
 app.post("/urls", (req, res) => {
   if (!req.body.longURL) {
@@ -74,22 +119,6 @@ app.post("/urls", (req, res) => {
   }
   if (!users[req.session.id]) {
     res.status(401).send("You need to <a href='/login'>login</a> to view that content.");
-  }
-});
-
-//Shows added url, if user is not logged in redirects to login page
-app.get("/urls/:shortURL", (req, res) => {
-  if (users[req.session.id]) {
-    helperFunctions.urlsForUser(req.session.id, urls);
-    const templateVars = {
-      shortURL: req.params.shortURL,
-      longURL: urls[req.params.shortURL].longURL,
-      user: users[req.session.id],
-    };
-    res.render("urls_show", templateVars);
-  }
-  if (!users[req.session.id]) {
-    res.status(403).send("You need to <a href='/login'>login</a> to view that content.");
   }
 });
 
@@ -121,49 +150,25 @@ app.post("/urls/:id/delete", (req, res) => {
   }
 });
 
-//Redirect when long URL is entered
-app.get("/u/:id", (req, res) => {
-  if (urls[req.params.shortURL]) {
-    const longURL = urls[req.params.shortURL].longURL;
-    res.redirect(longURL);
-  } else {
-    res.status(401).send("That URL does not exist. 😿 <a href='/urls/new'>Try making a new one.</a>");
-  }
-});
-//----------------------------User Login/Logout-------------------------
-
-//Add login page. If user is logged in already redirect to the urls page.
-app.get("/login", (req, res) => {
-  if (users[req.session.id]) {
-    res.redirect("/urls");
-  } else {
-    const templateVars = {
-      user: users[req.session.id]
-    };
-    res.render("login", templateVars);
-  }
-});
-
 //Create login endpoint to take in login data
 app.post("/login", (req, res) => {
   const email = req.body.email;
-  const password = req.body.password;
-  const hashedPassword = bcrypt.hashSync(password, 10);
-  bcrypt.compareSync(password, hashedPassword);
+  const enteredPassword = req.body.password;
   const userFound = helperFunctions.userEmailCheck(email, users);
-  if (userFound) {
-    const userId = helperFunctions.findUserID(email, users);
-    req.session.id = userId;
-    res.redirect("/urls");
-  }
-  if (!email || !password) {
+  if (!email || !enteredPassword) {
     res.status(400).send("Please <a href='/login'>enter an email and password</a>");
   }
   if (!userFound) {
     res.status(400).send("Email not registered, <a href='/login'>please try again</a> or <a href='/register'>register</a>.");
   }
-  if (userFound.hashedPassword !== hashedPassword) {
-    res.status(403).send("Password incorrect. <a href='/login'>Please try again</a>.");
+  if (userFound) {
+    if (bcrypt.compareSync(enteredPassword, userFound.password)) {
+      const userId = helperFunctions.findUserID(email, users);
+      req.session.id = userId;
+      res.redirect("/urls");
+    } else {
+      res.status(403).send("Password incorrect. <a href='/login'>Please try again</a>.");
+    }
   }
 });
 
@@ -173,24 +178,11 @@ app.post("/logout", (req, res) => {
   res.redirect("/urls");
 });
 
-// -----------------------------User Registration---------------------
-
-//Create registration page. If user is already logged in redirect to urls page.
-app.get("/register", (req, res) => {
-  if (users[req.session.id]) {
-    res.redirect("/urls");
-  } else {
-    const templateVars = {
-      user: users[req.session.id]
-    };
-    res.render("register", templateVars);
-  }
-});
-
 //Create registration endpoint to take in registration data. Redirect to login once complete.
 app.post("/register", (req, res) => {
   const password = req.body.password;
   const hashedPassword = bcrypt.hashSync(password, 10);
+  console.log(hashedPassword);
   if (!req.body.email && !req.body.password) {
     res.status(400).send("Please <a href='/register'>enter a valid email and password</a>.");
   }
@@ -206,4 +198,8 @@ app.post("/register", (req, res) => {
     password: hashedPassword
   };
   res.redirect("/login");
+});
+
+app.listen(PORT, () => {
+  console.log(`Example app listening on port ${PORT}!`);
 });
